@@ -5,6 +5,7 @@ const clientId = import.meta.env.VITE_CLIENT_ID;
 const clientSecret = import.meta.env.VITE_CLIENT_SECRET;
 const authorizationEndpoint = import.meta.env.VITE_AUTHORIZATION_ENDPOINT;
 const tokenEndpoint = import.meta.env.VITE_TOKEN_ENDPOINT;
+const redirectUri = import.meta.env.VITE_REDIRECT_URI;
 
 function base64UrlEncode(buffer) {
     return buffer.toString('base64')
@@ -13,24 +14,12 @@ function base64UrlEncode(buffer) {
         .replace(/=/g, '');
 }
 
-function generateCodeVerifier() {
-    return base64UrlEncode(randomBytes(32));
-}
-
-function generateState() {
-    return randomBytes(16).toString('hex');
-}
-
-function sha256(plain) {
-    return createHash('sha256').update(plain).digest();
-}
-
 export async function POST({ request, cookies }) {
     const body = await request.json();
 
     if (body.code) {
         // Handle token exchange
-        const { code, redirectUri, state } = body;
+        const { code, state } = body;
         const codeVerifier = cookies.get('code_verifier');
         const storedState = cookies.get('oauth_state');
 
@@ -77,10 +66,9 @@ export async function POST({ request, cookies }) {
         }
     } else {
         // Handle authorization initiation
-        const { redirectUri } = body;
-        const codeVerifier = generateCodeVerifier();
-        const codeChallenge = base64UrlEncode(sha256(codeVerifier));
-        const state = generateState();
+        const codeVerifier = base64UrlEncode(randomBytes(32));
+        const codeChallenge = base64UrlEncode(createHash('sha256').update(codeVerifier).digest());
+        const state = randomBytes(16).toString('hex');
 
         cookies.set('code_verifier', codeVerifier, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
         cookies.set('oauth_state', state, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
