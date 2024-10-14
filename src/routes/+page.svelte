@@ -4,6 +4,7 @@
 
     const { data } = $props();
     let isAuthenticated = $state(data.isAuthenticated);
+    let kintoneData = $state([]);
     let error = $state("");
 
     const redirectUri = import.meta.env.VITE_REDIRECT_URI;
@@ -63,13 +64,29 @@
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || "Failed to complete authentication");
+                throw new Error(
+                    errorData.error || "Failed to complete authentication",
+                );
             }
 
             isAuthenticated = true;
-            replaceState('/', {});
+            replaceState("/", {});
         } catch (err) {
             error = err.message;
+        }
+    }
+
+    async function getRecords() {
+        try {
+            const response = await fetch("/api/getRecords");
+            if (!response.ok) {
+                throw new Error("Failed to fetch records");
+            }
+            const data = await response.json();
+            console.log("Fetched records:", data);
+            kintoneData = data.records;
+        } catch (error) {
+            console.error("Error fetching records:", error);
         }
     }
 </script>
@@ -97,4 +114,28 @@
     </button>
 {/if}
 
-<p>Login Status: {isAuthenticated ? "Logged In" : "Not Logged In"}</p>
+{#if isAuthenticated}
+    <button
+        class="text-xl bg-red-600 text-white w-1/4 self-center py-5 rounded hover:bg-red-500"
+        onclick={getRecords}
+    >
+        Get Some Kintone Records
+    </button>
+{/if}
+
+<h2>Record Data:</h2>
+{#if kintoneData.length > 0}
+    <div class="flex">
+        {#each kintoneData as record (record.$id.value)}
+            <div class="p-5 bg-white m-2 rounded flex-wrap">
+                <p>Product Name: {record.name.value}</p>
+                <p>Price: ${record.price.value}</p>
+                <p>Description: {@html record.product_description.value}</p>
+            </div>
+        {/each}
+    </div>
+{:else}
+    <p>
+        No records to display. Click "Get Some Kintone Records" to fetch data.
+    </p>
+{/if}
